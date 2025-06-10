@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Packet Sniffer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --dark: #1e1e2c;
+            --light: #f8f9fa;
+        }
+        
+        .badge-tcp {
+            background-color: var(--primary);
+        }
+
+        .badge-udp {
+            background-color: var(--success);
+        }
+
+        .badge-icmp {
+            background-color: var(--danger);
+        }
+
+        .badge-https {
+            background-color: #ff9800; /* Orange color */
+            color: white;
+        }
+        
+        .badge-http { 
+            background-color: #007bff; 
+            color: white; 
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background-color: var(--dark);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+            color: white;
+        }
+        
+        .card {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            padding: 0.5rem 1.5rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary);
+            border-color: var(--secondary);
+        }
+        
+        .btn-danger {
+            background-color: var(--danger);
+            border-color: var(--danger);
+        }
+        
+        .btn-success {
+            background-color: var(--success);
+            border-color: var(--success);
+        }
+        
+        .table {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        
+        .table thead {
+            background-color: var(--dark);
+            color: white;
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(67, 97, 238, 0.05);
+        }
+        
+        .stats-card {
+            height: 100%;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .stats-icon {
+            width: 48px;
+            height: 48px;
+            background-color: rgba(67, 97, 238, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        
+        .modal-content {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .modal-header {
+            background-color: var(--dark);
+            color: white;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+        }
+        
+        .modal-footer {
+            border-bottom-left-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+        
+        .badge {
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            border-radius: 6px;
+        }
+        
+        .rotating-icon {
+            animation: rotation 2s infinite linear;
+        }
+        
+        @keyframes rotation {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(359deg);
+            }
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        
+        .status-active {
+            background-color: #0AC075;
+            box-shadow: 0 0 10px #0AC075;
+        }
+        
+        .status-inactive {
+            background-color: #ccc;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-network-wired me-2"></i>
+                Network Packet Sniffer
+            </a>
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <span class="status-indicator status-inactive" id="statusIndicator"></span>
+                    <span class="text-light" id="statusText">Idle</span>
+                </div>
+                <button class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-cog"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stats-icon me-3">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-muted">Total Packets</h6>
+                            <h3 class="card-title mb-0" id="totalPackets">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stats-icon me-3">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-muted">Avg Size</h6>
+                            <h3 class="card-title mb-0" id="avgSize">0 B</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stats-icon me-3">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-muted">Energy</h6>
+                            <h3 class="card-title mb-0" id="totalEnergy">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="stats-icon me-3">
+                            <i class="fas fa-code-branch"></i>
+                        </div>
+                        <div>
+                            <h6 class="card-subtitle mb-1 text-muted">Protocols</h6>
+                            <h3 class="card-title mb-0" id="protocolCount">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- Control Panel -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Control Panel</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary" id="startBtn">
+                        <i class="fas fa-play me-2"></i> Start
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn">
+                        <i class="fas fa-stop me-2"></i> Stop
+                    </button>
+                    <button class="btn btn-success" id="visualizeBtn">
+                        <i class="fas fa-chart-pie me-2"></i> Visualize
+                    </button>
+                    <button class="btn btn-secondary" id="clearBtn">
+                        <i class="fas fa-broom me-2"></i> Clear
+                    </button>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        <!-- Packet Capture -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Packet Capture</h5>
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-search me-2"></i>
+                            <input type="text" class="form-control form-control-sm" placeholder="Search packets..." id="searchInput">
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-clock me-1"></i> Timestamp</th>
+                                        <th><i class="fas fa-share-alt me-1"></i> Source IP</th>
+                                        <th><i class="fas fa-location-arrow me-1"></i> Destination IP</th>
+                                        <th><i class="fas fa-layer-group me-1"></i> Protocol</th>
+                                        <th><i class="fas fa-weight me-1"></i> Size</th>
+                                        <th><i class="fas fa-hourglass-half me-1"></i> TTL</th>
+                                        <th><i class="fas fa-bolt me-1"></i> Energy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="packetTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization Modal -->
+    <div class="modal fade" id="visualizationModal" tabindex="-1" aria-labelledby="visualizationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Packet Protocol Visualization
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-0">
+                    <ul class="nav nav-tabs" id="visualizationTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="protocol-tab" data-bs-toggle="tab" data-bs-target="#protocol" type="button" role="tab">Protocol Distribution</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="size-tab" data-bs-toggle="tab" data-bs-target="#size" type="button" role="tab">Packet Size</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="energy-tab" data-bs-toggle="tab" data-bs-target="#energy" type="button" role="tab">Energy Consumption</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-3" id="visualizationTabContent">
+                        <div class="tab-pane fade show active" id="protocol" role="tabpanel">
+                            <div class="chart-container">
+                                <canvas id="protocolChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="size" role="tabpanel">
+                            <div class="chart-container">
+                                <canvas id="sizeChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="energy" role="tabpanel">
+                            <div class="chart-container">
+                                <canvas id="energyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="exportBtn">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            let sniffingActive = false;
+            let packetData = [];
+            let totalPackets = 0;
+            let protocolMap = new Map();
+            let dataInterval;
+            
+            // Initialize charts
+            let protocolChart, sizeChart, energyChart;
+            
+            function initializeCharts() {
+                // Protocol Distribution Chart
+                const protocolCtx = document.getElementById('protocolChart').getContext('2d');
+                protocolChart = new Chart(protocolCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            data: [],
+                            backgroundColor: [
+                                '#4361ee', // TCP
+                                '#4cc9f0', // UDP
+                                '#f72585', // ICMP
+                                '#007bff', // HTTP
+                                '#ff9800'  // HTTPS
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Protocol Distribution',
+                                font: {
+                                    size: 16
+                                }
+                            },
+                            legend: {
+                                position: 'right'
+                            }
+                        }
+                    }
+                });
+                
+                // Packet Size Chart
+                const sizeCtx = document.getElementById('sizeChart').getContext('2d');
+                sizeChart = new Chart(sizeCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['<200', '201-400', '401-600', '601-800', '>800'],
+                        datasets: [{
+                            label: 'Packet Size Distribution',
+                            data: [0, 0, 0, 0, 0],
+                            backgroundColor: '#4361ee',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Packet Size Distribution (bytes)',
+                                font: {
+                                    size: 16
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Number of Packets'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Size Range (bytes)'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Energy Consumption Chart
+                const energyCtx = document.getElementById('energyChart').getContext('2d');
+                energyChart = new Chart(energyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Energy Consumption',
+                            data: [],
+                            fill: false,
+                            borderColor: '#f72585',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Energy Consumption Over Time',
+                                font: {
+                                    size: 16
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Energy'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Time'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function updateStats() {
+                $('#totalPackets').text(totalPackets);
+                
+                let totalSize = 0;
+                let totalEnergy = 0;
+                protocolMap.clear();
+                
+                packetData.forEach(packet => {
+                    totalSize += parseInt(packet.Size);
+                    totalEnergy += parseFloat(packet.Energy);
+                    
+                    if (protocolMap.has(packet.Protocol)) {
+                        protocolMap.set(packet.Protocol, protocolMap.get(packet.Protocol) + 1);
+                    } else {
+                        protocolMap.set(packet.Protocol, 1);
+                    }
+                });
+                
+                const avgSize = totalPackets > 0 ? Math.round(totalSize / totalPackets) : 0;
+                $('#avgSize').text(`${avgSize} B`);
+                $('#totalEnergy').text(totalEnergy.toFixed(2));
+                $('#protocolCount').text(protocolMap.size);
+            }
+            
+            function updateCharts() {
+                // Update protocol chart
+                const protocolLabels = Array.from(protocolMap.keys());
+                const protocolValues = Array.from(protocolMap.values());
+                
+                protocolChart.data.labels = protocolLabels;
+                protocolChart.data.datasets[0].data = protocolValues;
+                protocolChart.update();
+                
+                // Update size chart
+                const sizeRanges = [0, 0, 0, 0, 0]; // <200, 201-400, 401-600, 601-800, >800
+                
+                packetData.forEach(packet => {
+                    const size = parseInt(packet.Size);
+                    if (size <= 200) sizeRanges[0]++;
+                    else if (size <= 400) sizeRanges[1]++;
+                    else if (size <= 600) sizeRanges[2]++;
+                    else if (size <= 800) sizeRanges[3]++;
+                    else sizeRanges[4]++;
+                });
+                
+                sizeChart.data.datasets[0].data = sizeRanges;
+                sizeChart.update();
+                
+                // Update energy chart
+                // Take the last 10 packets for the line chart
+                const recentPackets = packetData.slice(-10);
+                const timeLabels = recentPackets.map(p => p.Timestamp);
+                const energyValues = recentPackets.map(p => parseFloat(p.Energy));
+                
+                energyChart.data.labels = timeLabels;
+                energyChart.data.datasets[0].data = energyValues;
+                energyChart.update();
+            }
+
+            function fetchPackets() {
+                if (!sniffingActive) return;
+                
+                $.get('/api/csv_data', function (data) {
+                    let rows = '';
+                    
+                    data.data.forEach(packet => {
+                        packetData.push(packet);
+                        totalPackets++;
+                        
+                        let protocolBadgeClass = 'primary';
+                        if (packet.Protocol === 'TCP') protocolBadgeClass = 'badge-tcp';
+                        if (packet.Protocol === 'UDP') protocolBadgeClass = 'badge-udp';
+                        if (packet.Protocol === 'ICMP') protocolBadgeClass = 'badge-icmp';
+                        
+                        rows += `<tr>
+                            <td>${packet.Timestamp}</td>
+                            <td>${packet['Source IP']}</td>
+                            <td>${packet['Destination IP']}</td>
+                            <td><span class="badge ${protocolBadgeClass}">${packet.Protocol}</span></td>
+                            <td>${packet.Size} bytes</td>
+                            <td>${packet.TTL}</td>
+                            <td>${packet.Energy}</td>
+                        </tr>`;
+                    });
+                    
+                    $('#packetTable').prepend(rows);
+                    updateStats();
+                });
+            }
+
+            // Simulate data updates for demo purposes
+            function simulateData() {
+                const protocols = ['TCP', 'UDP', 'ICMP', 'HTTP', 'HTTPS'];
+                const randomIP = () => `${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+                
+                const timeNow = new Date().toLocaleTimeString();
+                const packet = {
+                    Timestamp: timeNow,
+                    'Source IP': randomIP(),
+                    'Destination IP': randomIP(),
+                    Protocol: protocols[Math.floor(Math.random() * protocols.length)],
+                    Size: Math.floor(Math.random() * 1000) + 100,
+                    TTL: Math.floor(Math.random() * 64) + 1,
+                    Energy: (Math.random() * 5).toFixed(2)
+                };
+                
+                let protocolBadgeClass = 'badge-primary';
+
+                if (packet.Protocol === 'TCP') protocolBadgeClass = 'badge-tcp';
+                if (packet.Protocol === 'UDP') protocolBadgeClass = 'badge-udp';
+                if (packet.Protocol === 'ICMP') protocolBadgeClass = 'badge-icmp';
+                if (packet.Protocol === 'HTTPS') protocolBadgeClass = 'badge-https';
+                if (packet.Protocol === 'HTTP') protocolBadgeClass = 'badge-http';
+
+                const row = `<tr>
+                    <td>${packet.Timestamp}</td>
+                    <td>${packet['Source IP']}</td>
+                    <td>${packet['Destination IP']}</td>
+                    <td><span class="badge ${protocolBadgeClass}">${packet.Protocol}</span></td>
+                    <td>${packet.Size} bytes</td>
+                    <td>${packet.TTL}</td>
+                    <td>${packet.Energy}</td>
+                </tr>`;
+
+                $('#packetTable').prepend(row);
+                packetData.push(packet);
+                totalPackets++;
+                updateStats();
+            }
+
+            $('#startBtn').click(function () {
+                $.post('/api/start', function () {
+                    sniffingActive = true;
+                    $('#statusIndicator').removeClass('status-inactive').addClass('status-active');
+                    $('#statusText').text('Active');
+                });
+                
+                // For demo purposes
+                sniffingActive = true;
+                $('#statusIndicator').removeClass('status-inactive').addClass('status-active');
+                $('#statusText').text('Active');
+                
+                // Simulate data coming in
+                dataInterval = setInterval(simulateData, 1000);
+            });
+
+            $('#stopBtn').click(function () {
+                $.post('/api/stop', function () {
+                    sniffingActive = false;
+                    $('#statusIndicator').removeClass('status-active').addClass('status-inactive');
+                    $('#statusText').text('Idle');
+                });
+                
+                // For demo purposes
+                sniffingActive = false;
+                $('#statusIndicator').removeClass('status-active').addClass('status-inactive');
+                $('#statusText').text('Idle');
+                clearInterval(dataInterval);
+            });
+
+            $('#visualizeBtn').click(function () {
+                updateCharts();
+                $('#visualizationModal').modal('show');
+            });
+            
+            $('#clearBtn').click(function() {
+                $('#packetTable').empty();
+                packetData = [];
+                totalPackets = 0;
+                protocolMap.clear();
+                updateStats();
+                updateCharts();
+            });
+            
+            $('#searchInput').on('keyup', function() {
+                const value = $(this).val().toLowerCase();
+                $("#packetTable tr").filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                });
+            });
+            
+            $('#exportBtn').click(function() {
+                const activeTab = $('.nav-link.active').attr('id');
+                let canvas;
+                
+                if (activeTab === 'protocol-tab') {
+                    canvas = document.getElementById('protocolChart');
+                } else if (activeTab === 'size-tab') {
+                    canvas = document.getElementById('sizeChart');
+                } else if (activeTab === 'energy-tab') {
+                    canvas = document.getElementById('energyChart');
+                }
+                
+                const link = document.createElement('a');
+                link.download = `network-sniffer-${activeTab.replace('-tab', '')}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+// Global variables for anomaly detection
+let globalIcmpCount = 0;
+let anomalyDetectionActive = false;
+let anomalyInterval;
+
+function detectAnomalies(packetData) {
+    const anomalies = [];
+    let newIcmpCount = 0;
+    const anomalyThreshold = 5; // Setting a threshold for anomaly detection
+    
+    // Track ICMP packets and flag them as anomalies
+    packetData.forEach(packet => {
+        if (packet.Protocol === 'ICMP') {
+            newIcmpCount++;
+            globalIcmpCount++; // Increment global counter
+            
+            anomalies.push({
+                Timestamp: packet.Timestamp,
+                'Source IP': packet['Source IP'],
+                'Destination IP': packet['Destination IP'],
+                Protocol: packet.Protocol,
+                Size: packet.Size,
+                TTL: packet.TTL,
+                Energy: packet.Energy,
+                Reason: 'ICMP traffic detected',
+                Severity: globalIcmpCount > anomalyThreshold ? 'High' : 'Medium',
+                type: 'ICMP Detection',
+                description: `ICMP packet from ${packet['Source IP']} to ${packet['Destination IP']}`,
+                timestamp: packet.Timestamp || new Date().toISOString()
+            });
+        }
+    });
+
+    console.log(`Detected ${newIcmpCount} new ICMP packets, total: ${globalIcmpCount}`);
+
+    return {
+        anomalies,
+        stats: {
+            packetsAnalyzed: packetData.length,
+            timestamp: new Date().toISOString(),
+            icmpCount: globalIcmpCount,
+            newIcmpCount: newIcmpCount,
+            anomalyDetected: globalIcmpCount > anomalyThreshold
+        }
+    };
+}
+
+// Create UI alert container if it doesn't exist
+function createAlertContainer() {
+    // Check if container already exists
+    if (document.getElementById('anomalyAlerts')) {
+        return document.getElementById('anomalyAlerts').querySelector('.col-md-12');
+    }
+    
+    const container = document.createElement('div');
+    container.id = 'anomalyAlerts';
+    container.className = 'row mb-4';
+    
+    // Create column to maintain layout
+    const column = document.createElement('div');
+    column.className = 'col-md-12';
+    container.appendChild(column);
+    
+    // Find the appropriate place to insert the container
+    const controlPanel = document.querySelector('.row.mb-4');
+    if (controlPanel) {
+        controlPanel.parentNode.insertBefore(container, controlPanel.nextSibling);
+    } else {
+        // Fallback if the control panel isn't found
+        const mainContent = document.querySelector('.container') || document.body;
+        mainContent.appendChild(container);
+    }
+    
+    return column;
+}
+
+// Create and show modal popup for anomaly detection
+function showAnomalyPopup(anomalyResults) {
+    // We need to ensure Bootstrap is available
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap is not available. Modal cannot be displayed.');
+        alert(anomalyResults.stats.anomalyDetected ? 
+            `Anomaly Detected! ${anomalyResults.stats.icmpCount} ICMP packets found.` : 
+            'No anomalies detected.');
+        return;
+    }
+    
+    // Remove any existing modals
+    const oldModal = document.getElementById('anomalyModal');
+    if (oldModal) {
+        oldModal.remove();
+    }
+    
+    // Create modal element
+    const modal = document.createElement('div');
+    modal.id = 'anomalyModal';
+    modal.className = 'modal fade';
+    modal.setAttribute('tabindex', '-1');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-labelledby', 'anomalyModalLabel');
+    modal.setAttribute('aria-hidden', 'true');
+    
+    // Create modal content
+    const anomalyDetected = anomalyResults.stats.anomalyDetected;
+    const modalClass = anomalyDetected ? 'danger' : 'success';
+    const modalTitle = anomalyDetected ? 'Anomaly Detected!' : 'No Anomalies Detected';
+    const modalIcon = anomalyDetected ? 'exclamation-triangle' : 'check-circle';
+    
+    modal.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-${modalClass} text-white">
+                    <h5 class="modal-title" id="anomalyModalLabel">
+                        <i class="fas fa-${modalIcon} me-2"></i>${modalTitle}
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-${modalIcon} fa-4x text-${modalClass} mb-3"></i>
+                        <h4>${anomalyDetected ? 'Network Anomaly Warning' : 'Network Status Normal'}</h4>
+                    </div>
+                    <div class="alert alert-${modalClass}">
+                        ${anomalyDetected ? 
+                            `Detected ${anomalyResults.stats.icmpCount} ICMP packets in serial manner` : 
+                            'Current network traffic patterns appear normal.'}
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span><strong>Packets Analyzed:</strong> ${anomalyResults.stats.packetsAnalyzed}</span>
+                        <span><strong>ICMP Count:</strong> ${anomalyResults.stats.icmpCount}</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    ${anomalyDetected ? 
+                        '<button type="button" class="btn btn-danger" id="viewDetailsBtn">View Details</button>' : 
+                        ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Append modal to body
+    document.body.appendChild(modal);
+    
+    try {
+        // Initialize modal
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        
+        // Add event listener for "View Details" button
+        const viewDetailsBtn = document.getElementById('viewDetailsBtn');
+        if (viewDetailsBtn) {
+            viewDetailsBtn.addEventListener('click', function() {
+                bsModal.hide();
+                // Scroll to anomaly alerts section
+                const alertsSection = document.getElementById('anomalyAlerts');
+                if (alertsSection) {
+                    alertsSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        alert(anomalyResults.stats.anomalyDetected ? 
+            `Anomaly Detected! ${anomalyResults.stats.icmpCount} ICMP packets found.` : 
+            'No anomalies detected.');
+    }
+}
+
+// Display anomaly alerts in UI
+function displayAnomalyAlerts(anomalyResults) {
+    const alertContainer = createAlertContainer();
+    
+    // Clear existing alerts
+    alertContainer.innerHTML = '';
+    
+    // Create card for alerts
+    const card = document.createElement('div');
+    card.className = 'card';
+    
+    // Create card header
+    const cardHeader = document.createElement('div');
+    cardHeader.className = 'card-header bg-dark text-white d-flex justify-content-between align-items-center';
+    cardHeader.innerHTML = `
+        <h5 class="mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Anomaly Detection
+        </h5>
+        <span class="badge bg-primary">${anomalyResults.stats.packetsAnalyzed} packets analyzed</span>
+    `;
+    
+    // Create card body
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    
+    if (anomalyResults.anomalies.length === 0) {
+        // Show a success message when no anomalies are found
+        cardBody.innerHTML = `
+            <div class="alert alert-success mb-0">
+                <i class="fas fa-check-circle me-2"></i>
+                No anomalies detected
+            </div>
+        `;
+    } else {
+        // Add summary at the top
+        const summary = document.createElement('div');
+        summary.className = 'alert alert-info mb-3';
+        summary.innerHTML = `<strong>Summary:</strong> Detected ${globalIcmpCount} total ICMP packets`;
+        cardBody.appendChild(summary);
+        
+        // Create alerts for each anomaly
+        anomalyResults.anomalies.forEach(anomaly => {
+            const alert = document.createElement('div');
+            
+            // Set the appropriate alert style based on severity
+            switch(anomaly.Severity.toLowerCase()) {
+                case 'high':
+                    alert.className = 'alert alert-danger';
+                    break;
+                case 'medium':
+                    alert.className = 'alert alert-warning';
+                    break;
+                case 'low':
+                    alert.className = 'alert alert-info';
+                    break;
+                default:
+                    alert.className = 'alert alert-primary';
+            }
+            
+            // Create alert content
+            alert.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${anomaly.type}</strong>: ${anomaly.description}
+                    </div>
+                    <small class="text-muted">${new Date(anomaly.timestamp).toLocaleTimeString()}</small>
+                </div>
+            `;
+            
+            cardBody.appendChild(alert);
+        });
+    }
+    
+    // Assemble the card
+    card.appendChild(cardHeader);
+    card.appendChild(cardBody);
+    
+    // Add the card to the container
+    alertContainer.appendChild(card);
+}
+
+// Keep track of last analyzed packet index
+let lastAnalyzedIndex = 0;
+
+// Add simulated ICMP packet for testing
+function addSimulatedIcmpPacket() {
+    if (!window.packetData) {
+        window.packetData = [];
+    }
+    
+    const timestamp = new Date().toISOString();
+    const sourceIp = `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+    const destIp = `192.168.1.${Math.floor(Math.random() * 254) + 1}`;
+    
+    window.packetData.push({
+        Timestamp: timestamp,
+        'Source IP': sourceIp,
+        'Destination IP': destIp,
+        Protocol: 'ICMP',
+        Size: Math.floor(Math.random() * 100) + 50,
+        TTL: Math.floor(Math.random() * 64) + 1,
+        Energy: Math.random().toFixed(2)
+    });
+    
+    console.log('Added simulated ICMP packet');
+    
+    // If detection is active, run real-time detection
+    if (anomalyDetectionActive) {
+        realTimeAnomalyDetection();
+    }
+}
+
+// Analyze new packets in real-time
+function realTimeAnomalyDetection() {
+    console.log('Running real-time anomaly detection...');
+    
+    // Get current packet data - ensure we have access to the global variable
+    const currentPacketData = window.packetData || [];
+    
+    // Check if there are new packets
+    if (currentPacketData.length > lastAnalyzedIndex) {
+        console.log(`Found ${currentPacketData.length - lastAnalyzedIndex} new packets to analyze`);
+        
+        // Get only new packets since last check
+        const newPackets = currentPacketData.slice(lastAnalyzedIndex);
+        
+        // Update last analyzed index
+        lastAnalyzedIndex = currentPacketData.length;
+        
+        // Run detection on new packets
+        const newAnomalies = detectAnomalies(newPackets);
+        
+        // Always update the display
+        const fullResults = {
+            anomalies: [],
+            stats: {
+                packetsAnalyzed: currentPacketData.length,
+                icmpCount: globalIcmpCount,
+                anomalyDetected: globalIcmpCount > 5
+            }
+        };
+        
+        // Get all ICMP packets for display
+        currentPacketData.forEach(packet => {
+            if (packet.Protocol === 'ICMP') {
+                fullResults.anomalies.push({
+                    Timestamp: packet.Timestamp,
+                    'Source IP': packet['Source IP'],
+                    'Destination IP': packet['Destination IP'],
+                    Protocol: packet.Protocol,
+                    Size: packet.Size,
+                    TTL: packet.TTL,
+                    Energy: packet.Energy,
+                    Reason: 'ICMP traffic detected',
+                    Severity: globalIcmpCount > 5 ? 'High' : 'Medium',
+                    type: 'ICMP Detection',
+                    description: `ICMP packet from ${packet['Source IP']} to ${packet['Destination IP']}`,
+                    timestamp: packet.Timestamp || new Date().toISOString()
+                });
+            }
+        });
+        
+        // Update the display with all results
+        displayAnomalyAlerts(fullResults);
+        
+        // If new ICMP packets were found, may need to show popup
+        if (newAnomalies.stats.newIcmpCount > 0) {
+            // Check if we've crossed the threshold with these new packets
+            const wasOverThreshold = (globalIcmpCount - newAnomalies.stats.newIcmpCount) > 5;
+            const isOverThreshold = globalIcmpCount > 5;
+            
+            // Only show popup if we just crossed the threshold
+            if (isOverThreshold && !wasOverThreshold) {
+                console.log('Threshold crossed! Showing popup.');
+                showAnomalyPopup(fullResults);
+                playAlertSound();
+            }
+        }
+    } else {
+        console.log('No new packets to analyze');
+    }
+}
+
+// Play alert sound when anomaly is detected
+function playAlertSound() {
+    // Create audio element if it doesn't exist
+    if (!window.alertSound) {
+        window.alertSound = new Audio();
+        window.alertSound.src = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLHPO7tZyKwggeN79X'; // Base64 encoded alert sound
+        window.alertSound.volume = 0.5;
+    }
+    
+    try {
+        // Play the sound
+        const playPromise = window.alertSound.play();
+        if (playPromise) {
+            playPromise.catch(e => console.log('Audio play failed:', e));
+        }
+    } catch (e) {
+        console.log('Error playing sound:', e);
+    }
+}
+
+// Make sure we have a global variable for packet data if it doesn't exist
+if (typeof window.packetData === 'undefined') {
+    window.packetData = [];
+    console.log('Initialized empty packet data array');
+}
+
+// Initialize anomaly detection on document ready
+$(document).ready(function() {
+    console.log('Initializing anomaly detection system...');
+    
+    // Add anomaly detection button to control panel
+    const controlButtonsDiv = $('.card-body .d-flex.gap-2');
+    
+    if (controlButtonsDiv.length === 0) {
+        console.warn('Control panel not found. Creating fallback control panel.');
+        const fallbackPanel = $('<div class="card mb-4"><div class="card-body"><div class="d-flex gap-2"></div></div></div>');
+        $('body').prepend(fallbackPanel);
+        controlButtonsDiv = fallbackPanel.find('.d-flex.gap-2');
+    }
+    
+    // Create anomaly detection button if it doesn't exist
+    if ($('#anomalyBtn').length === 0) {
+        console.log('Creating anomaly detection button');
+        const button = $(`
+            <button class="btn btn-warning" id="anomalyBtn">
+                <i class="fas fa-radar me-2"></i> Anomaly Detection
+            </button>
+        `);
+        
+        controlButtonsDiv.append(button);
+    }
+    
+    // Add a test button for simulating ICMP traffic
+    if ($('#testIcmpBtn').length === 0) {
+        console.log('Creating test ICMP button');
+        const testButton = $(`
+            <button class="btn btn-info" id="testIcmpBtn">
+                <i class="fas fa-bug me-2"></i> Simulate ICMP
+            </button>
+        `);
+        
+        controlButtonsDiv.append(testButton);
+    }
+    
+    // Handle the click event for anomaly detection button
+    $(document).on('click', '#anomalyBtn', function() {
+        if (!anomalyDetectionActive) {
+            // Start anomaly detection
+            startAnomalyDetection();
+            
+            // Update button appearance
+            $(this).removeClass('btn-warning').addClass('btn-danger');
+            $(this).html('<i class="fas fa-shield-alt me-2"></i> Stop Anomaly Detection');
+            
+            console.log('Anomaly detection started');
+        } else {
+            // Stop anomaly detection
+            stopAnomalyDetection();
+            
+            // Update button appearance
+            $(this).removeClass('btn-danger').addClass('btn-warning');
+            $(this).html('<i class="fas fa-radar me-2"></i> Anomaly Detection');
+            
+            console.log('Anomaly detection stopped');
+        }
+        
+        // Toggle active state
+        anomalyDetectionActive = !anomalyDetectionActive;
+    });
+    
+    // Handle click for test ICMP button
+    $(document).on('click', '#testIcmpBtn', function() {
+        console.log('Adding simulated ICMP packet');
+        addSimulatedIcmpPacket();
+        
+        // Flash the button briefly
+        $(this).addClass('btn-success').removeClass('btn-info');
+        setTimeout(() => {
+            $(this).addClass('btn-info').removeClass('btn-success');
+        }, 200);
+    });
+    
+    // Function to start anomaly detection
+    function startAnomalyDetection() {
+        // Reset detection state
+        globalIcmpCount = 0;
+        lastAnalyzedIndex = 0;
+        
+        // Get current packet data and analyze all existing packets
+        const currentPacketData = window.packetData || [];
+        console.log(`Starting analysis of ${currentPacketData.length} existing packets`);
+        
+        const anomalyResults = detectAnomalies(currentPacketData);
+        displayAnomalyAlerts(anomalyResults);
+        
+        // Show initial popup with results
+        showAnomalyPopup(anomalyResults);
+        
+        // Update last analyzed index
+        lastAnalyzedIndex = currentPacketData.length;
+        
+        // Set interval for continuous real-time detection
+        anomalyInterval = setInterval(realTimeAnomalyDetection, 500); // Check for new packets every 500ms
+    }
+    
+    // Function to stop anomaly detection
+    function stopAnomalyDetection() {
+        clearInterval(anomalyInterval);
+        
+        // Remove alert container contents
+        const alertContainer = document.getElementById('anomalyAlerts');
+        if (alertContainer) {
+            alertContainer.querySelector('.col-md-12').innerHTML = '';
+        }
+    }
+    
+    // Add stop anomaly detection when stop capture button is clicked
+    $('#stopBtn').click(function() {
+        if (anomalyDetectionActive) {
+            $('#anomalyBtn').click(); // Trigger click to stop detection
+        }
+    });
+    
+    // Stop anomaly detection when clear button is clicked
+    $('#clearBtn').click(function() {
+        if (anomalyDetectionActive) {
+            $('#anomalyBtn').click(); // Trigger click to stop detection
+        }
+    });
+    
+    console.log('Anomaly detection system initialized');
+});
+
+ 
+            
+            // Initialize everything
+            initializeCharts();
+            fetchPackets();
+            
+            // Add some initial data for demo
+            for (let i = 0; i < 10; i++) {
+                simulateData();
+            }
+        });
+    </script>
+    
+    </script>
+</body>
+</html>
