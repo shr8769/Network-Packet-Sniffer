@@ -37,6 +37,24 @@ A real-time network packet sniffer and analyzer with a web-based dashboard. Capt
 
 
 ---
+🛠️ Technology Stack
+Backend: Python (with Flask or similar framework for API endpoints)
+
+Frontend:
+
+->HTML, CSS, and JavaScript for the web interface
+
+->Bootstrap for responsive layout and styling
+
+->jQuery for DOM manipulation and AJAX requests
+
+->Chart.js for data visualization (protocol, packet size, and energy charts)
+
+->Optional Remote Access: ngrok for exposing your local server to the internet
+
+Note:
+This project currently uses a traditional web stack (HTML/CSS/JS) for the dashboard. React is not used, but you can migrate or add a React frontend in the future if you prefer a modern SPA (Single Page Application) approach
+---
 
 ## 🚀 Getting Started
 
